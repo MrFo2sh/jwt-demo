@@ -3,6 +3,8 @@ const cors = require("cors");
 const users = require("./data/users.json");
 const todos = require("./data/todos.json");
 const jwt = require("jsonwebtoken");
+const session = require("express-session");
+const path = require("path");
 
 const app = express();
 
@@ -10,6 +12,19 @@ app.use(cors());
 app.options("*", cors());
 
 app.use(express.json());
+
+app.use(
+  session({
+    secret: "session_secret_password",
+  })
+);
+
+app.use((req, res, next) => {
+  console.log(req.session);
+  next();
+});
+
+app.use(express.static(path.join(__dirname, "frontend")));
 
 app.listen(8080, () => {
   console.log("Server started!");
@@ -21,8 +36,8 @@ app.post("/login", (req, res) => {
   for (let user of users) {
     if (email === user.email && password === user.password) {
       const newUser = { ...user, password: null };
+      req.session.user = newUser;
       return res.json({
-        token: jwt.sign(newUser, "token_secret_password"),
         user: newUser,
       });
     }
@@ -33,7 +48,7 @@ app.post("/login", (req, res) => {
 
 app.get("/todos", authMiddleware, isUser, (req, res) => {
   res.json({
-    todos: todos.filter((todo) => todo.userId == req.user.id),
+    todos: todos.filter((todo) => todo.userId == req.session.user.id),
   });
 });
 
@@ -56,32 +71,21 @@ app.get("/all-todos", authMiddleware, isAdmin, (req, res) => {
  */
 
 function authMiddleware(req, res, next) {
-  let token = req.headers.Authorization || req.headers.authorization;
-
-  if (!token) return res.sendStatus(403);
-
-  token = token.split(" ")[1];
-
-  try {
-    const user = jwt.verify(token, "token_secret_password");
-    req.user = user;
-    next();
-  } catch (error) {
-    return res.sendStatus(403);
-  }
+  if (!req.session.user) return res.sendStatus(401);
+  next();
 }
 
 function isUser(req, res, next) {
-  if (req.user.role !== "user") return res.sendStatus(403);
+  if (req.session.user.role !== "user") return res.sendStatus(403);
   next();
 }
 
 function isAdmin(req, res, next) {
-  if (req.user.role !== "admin") return res.sendStatus(403);
+  if (req.session.user.role !== "admin") return res.sendStatus(403);
   next();
 }
 
 function isTester(req, res, next) {
-  if (req.user.role !== "tester") return res.sendStatus(403);
+  if (req.session.user.role !== "tester") return res.sendStatus(403);
   next();
 }

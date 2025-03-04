@@ -37,25 +37,20 @@
 
     <script>
       window.onload = async () => {
-        if (!localStorage.getItem("token")) {
-          window.location.href = "/frontend/index.html";
-          return;
-        }
-
         try {
           const response = await fetch("http://localhost:8080/todos", {
             method: "GET",
             headers: {
               "Content-Type": "application/json",
-              Authorization: "Bearer " + localStorage.getItem("token"),
             },
           });
 
           if (!response.ok) {
-            if (response.status === 403) {
+            console.log("response.status: ", response.status);
+
+            if (response.status === 403 || response.status === 401) {
               console.log("Forbidden (User not logged in)");
-              localStorage.clear();
-              window.location.href = "/frontend/index.html";
+              window.location.href = "/index.html";
             } else {
               console.log("An error occurred:", response.statusText);
             }
