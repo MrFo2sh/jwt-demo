@@ -22,7 +22,10 @@ app.post("/login", (req, res) => {
     if (email === user.email && password === user.password) {
       const newUser = { ...user, password: null };
       return res.json({
-        token: jwt.sign(newUser, "token_secret_password"),
+        token: jwt.sign(newUser, "token_secret_password", { expiresIn: "1d" }),
+        refresh_token: jwt.sign(newUser, "refresh_token_secret_password", {
+          expiresIn: "7d",
+        }),
         user: newUser,
       });
     }
@@ -35,6 +38,18 @@ app.get("/todos", authMiddleware, isUser, (req, res) => {
   res.json({
     todos: todos.filter((todo) => todo.userId == req.user.id),
   });
+});
+
+app.post("/refresh_token", (req, res) => {
+  const { refresh_token } = req.body;
+  try {
+    const user = jwt.verify(refresh_token, "refresh_token_secret_password");
+    return res.json({
+      token: jwt.sign(user, "token_secret_password", { expiresIn: "1d" }),
+    });
+  } catch (error) {
+    res.sendStatus(403);
+  }
 });
 
 app.get("/users", authMiddleware, isAdmin, (req, res) => {
